@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>LuciData Tech — HR/Payroll · Time & Attendance</title>
+
+  <!-- IMPORTANT: integrare proiect existent -->
+  <link rel="stylesheet" href="./assets/css/time.css">
+  <script defer src="./assets/js/time.data.js"></script>
+  <script defer src="./assets/js/time.ai.js"></script>
+  <script defer src="./assets/js/time.js"></script>
+</head>
+
+<body>
+  <!-- App Shell -->
+  <div id="app" class="app">
+    <!-- Loader (300–500ms in JS) -->
+    <div id="appLoader" class="app-loader" aria-live="polite" aria-busy="true">
+      <div class="loader-panel card">
+        <div class="loader-row">
+          <div class="loader-dot"></div>
+         <div class="loader-dot"></div>
+          <div class="loader-dot"></div>
+        </div>
+        <div class="muted">Se inițializează Time & Attendance…</div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Navigație principală">
+      <div class="sidebar-top">
+        <div class="brand">
+          <div class="brand-text">
+            <div class="brand-name">LuciData Tech</div>
+            <div class="brand-sub muted">HR/Payroll · Time & Attendance</div>
+          </div>
+        </div>
+
+        <div class="sidebar-actions">
+          <button class="btn btn-ghost" id="btnExportAll" type="button" title="Export JSON (DB + Settings)">
+            Export JSON
+          </button>
+          <button class="btn btn-ghost" id="btnImportAll" type="button" title="Import JSON (DB + Settings)">
+            Import JSON
+          </button>
+          <input id="importFileInput" type="file" accept="application/json" hidden />
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Secțiuni">
+        <button class="nav-item active" data-tab="overview" type="button">
+          <span class="nav-title">Overview</span>
+          <span class="badge badge-soft" id="navBadgeToday">Azi</span>
+        </button>
+        <button class="nav-item" data-tab="punch" type="button">
+          <span class="nav-title">Pontaj</span>
+          <span class="badge" id="navBadgePunch">0</span>
+        </button>
+        <button class="nav-item" data-tab="shifts" type="button">
+          <span class="nav-title">Schimburi</span>
+          <span class="badge" id="navBadgeShifts">0</span>
+        </button>
+        <button class="nav-item" data-tab="overtime" type="button">
+          <span class="nav-title">Overtime</span>
+          <span class="badge badge-warning" id="navBadgeOT">0</span>
+        </button>
+        <button class="nav-item" data-tab="reports" type="button">
+          <span class="nav-title">Rapoarte</span>
+          <span class="badge badge-soft">CSV</span>
+        </button>
+        <button class="nav-item" data-tab="settings" type="button">
+          <span class="nav-title">Setări</span>
+          <span class="badge badge-soft">DB</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="mini card">
+          <div class="mini-row">
+            <div class="muted">DB</div>
+            <div class="mono" id="dbKeyLabel">TIME_DB_v1</div>
+          </div>
+          <div class="mini-row">
+            <div class="muted">Settings</div>
+            <div class="mono" id="settingsKeyLabel">TIME_SETTINGS_v1</div>
+          </div>
+        </div>
+
+        <div class="footer muted">
+          <div>© <span id="yearNow">2026</span> LuciData Tech</div>
+          <div class="mono">window.TIME_APP</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main" role="main">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn btn-ghost btn-icon" id="btnToggleSidebar" type="button" aria-label="Afișează/ascunde meniul">
+            ☰
+          </button>
+          <div>
+            <div class="h1">Time & Attendance</div>
+            <div class="muted">Pontaj digital · Schimburi · Overtime · Rapoarte</div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="chip">
+            <span class="muted">Ora curentă</span>
+            <span class="mono" id="liveClock">--:--:--</span>
+            <span class="badge badge-soft" id="tzLabel">Europe/Bucharest</span>
+          </div>
+
+          <div class="chip">
+            <span class="muted">Mod</span>
+            <span class="badge" id="mobileModeBadge">Web</span>
+            <label class="switch" title="Simulare Mobile check-in">
+              <input id="toggleMobileMode" type="checkbox" />
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span class="switch-text">Mobile mode</span>
+            </label>
+          </div>
+
+          <button class="btn btn-primary" id="btnQuickCheckIn" type="button" title="Start program pentru angajatul selectat (în Pontaj)">
+            Start program
+          </button>
+          <button class="btn btn-danger" id="btnQuickCheckOut" type="button" title="Sfârșit program pentru angajatul selectat (în Pontaj)">
+            Sfârșit program
+          </button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <section class="content">
+
+        <!-- KPI row -->
+        <section class="kpi-grid" aria-label="Indicatori cheie">
+          <article class="card kpi">
+            <div class="kpi-label muted">Angajați pontați azi</div>
+            <div class="kpi-value" id="kpiCheckedInToday">0</div>
+            <div class="kpi-foot muted">Intrări confirmate pentru data curentă</div>
+          </article>
+
+          <article class="card kpi">
+            <div class="kpi-label muted">Ore lucrate azi</div>
+            <div class="kpi-value" id="kpiHoursToday">1.45</div>
+            <div class="kpi-foot muted">Calcul automat (check-in/out)</div>
+          </article>
+
+          <article class="card kpi">
+            <div class="kpi-label muted">Ore suplimentare luna curentă</div>
+            <div class="kpi-value" id="kpiOTMonth">160.45</div>
+            <div class="kpi-foot muted">Peste norma zilnică (configurabil)</div>
+          </article>
+
+          <article class="card kpi">
+            <div class="kpi-label muted">Schimburi neacoperite</div>
+            <div class="kpi-value" id="kpiUncoveredShifts">161.20</div>
+            <div class="kpi-foot muted">Zile fără planificare (în intervalul vizibil)</div>
+          </article>
+        </section>
+
+        <!-- Tabs -->
+        <section class="tabs">
+          <div class="tabs-bar" role="tablist" aria-label="Tab-uri modul">
+            <button class="tab active" data-tab="overview" type="button" role="tab" aria-selected="true">Overview</button>
+            <button class="tab" data-tab="punch" type="button" role="tab" aria-selected="false">Pontaj</button>
+            <button class="tab" data-tab="shifts" type="button" role="tab" aria-selected="false">Schimburi</button>
+            <button class="tab" data-tab="overtime" type="button" role="tab" aria-selected="false">Overtime</button>
+            <button class="tab" data-tab="reports" type="button" role="tab" aria-selected="false">Rapoarte</button>
+            <button class="tab" data-tab="settings" type="button" role="tab" aria-selected="false">Setări</button>
+          </div>
+
+          <!-- OVERVIEW -->
+          <div class="tab-panel active" id="tab-overview" data-panel="overview" role="tabpanel">
+            <div class="grid-2">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Ultimele check-in-uri</div>
+                    <div class="muted">Activitate recentă (Web/Mobile/AccessSystem)</div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-ghost" id="btnRefreshOverview" type="button">Refresh</button>
+                  </div>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="table" aria-label="Ultimele check-in-uri">
+                    <thead>
+                      <tr>
+                        <th>Angajat</th>
+                        <th>Data</th>
+                        <th>Check-in</th>
+                        <th>Sursă</th>
+                        <th class="right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tblRecentCheckins">
+                      <!-- Populat de JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Overtime în așteptare</div>
+                    <div class="muted">Detectat automat din ore lucrate</div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-ghost" id="btnGoOvertime" type="button">Deschide</button>
+                  </div>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="table" aria-label="Overtime în așteptare">
+                    <thead>
+                      <tr>
+                        <th>Angajat</th>
+                        <th>Data</th>
+                        <th>Ore</th>
+                        <th>Status</th>
+                        <th class="right">Payroll</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tblPendingOT">
+                      <!-- Populat de JS -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="insights">
+                  <div class="insights-head">
+                    <div class="card-title">Insights</div>
+                    <span class="badge badge-soft">Discret</span>
+                  </div>
+                  <div class="muted" id="overviewInsightsText">
+                    <!-- Populat de JS (time.ai.js) -->
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <!-- PONTAJ -->
+          <div class="tab-panel" id="tab-punch" data-panel="punch" role="tabpanel">
+            <div class="grid-2">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Check-in / Check-out</div>
+                    <div class="muted">Previne dublu check-in și check-out fără check-in</div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-ghost" id="btnImportAccess" type="button" title="Generează evenimente demo AccessSystem">
+                      Import acces
+                    </button>
+                    <button class="btn btn-ghost" id="btnOpenPunchModal" type="button">
+                      Adaugă manual
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <label class="field">
+                    <span class="label muted">Angajat</span>
+                    <select id="punchEmployeeSelect" class="input"></select>
+                  </label>
+
+                  <label class="field">
+                    <span class="label muted">Data</span>
+                    <input id="punchDate" class="input" type="date" />
+                  </label>
+
+                  <div class="field">
+                    <span class="label muted">Acțiuni</span>
+                    <div class="btn-row">
+                      <button class="btn btn-primary" id="btnCheckIn" type="button">Start program</button>
+                      <button class="btn btn-danger" id="btnCheckOut" type="button">Sfârșit program</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="callout" id="punchStatus">
+                  <span class="badge badge-soft" id="punchLockBadge">Editare permisă</span>
+                  <span class="muted" id="punchHint">Selectați angajatul și apăsați Start/Sfârșit program.</span>
+                </div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Pontaje (ziua selectată)</div>
+                    <div class="muted">Total ore calculat automat · Lock după 24h</div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-ghost" id="btnExportPunchDay" type="button">Export zi (JSON)</button>
+                  </div>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="table" aria-label="Pontaje zi">
+                    <thead>
+                      <tr>
+                        <th>Angajat</th>
+                        <th>Check-in</th>
+                        <th>Check-out</th>
+                        <th>Total</th>
+                        <th>Sursă</th>
+                        <th class="right">Acțiuni</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tblPunchDay">
+                      <!-- Populat de JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Pontaje (ultimele 30 zile)</div>
+                  <div class="muted">Filtrare simplă · Export JSON/CSV</div>
+                </div>
+                <div class="card-actions">
+                  <label class="field inline">
+                    <span class="label muted">Căutare</span>
+                    <input id="punchSearch" class="input" type="search" placeholder="Nume / departament / dată…" />
+                  </label>
+                  <button class="btn btn-ghost" id="btnExportPunchJSON" type="button">Export JSON</button>
+                  <button class="btn btn-ghost" id="btnExportPunchCSV" type="button">Export CSV</button>
+                </div>
+              </div>
+
+              <div class="table-wrap">
+                <table class="table" aria-label="Pontaje ultimele 30 zile">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Angajat</th>
+                      <th>Check-in</th>
+                      <th>Check-out</th>
+                      <th>Total</th>
+                      <th>Sursă</th>
+                      <th class="right">OT</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tblPunch30">
+                    <!-- Populat de JS -->
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          <!-- SCHIMBURI -->
+          <div class="tab-panel" id="tab-shifts" data-panel="shifts" role="tabpanel">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Planificare schimburi</div>
+                  <div class="muted">Calendar simplu (Monthly/Weekly) · Grid zile × angajați</div>
+                </div>
+                <div class="card-actions">
+                  <div class="segmented" role="group" aria-label="Vizualizare">
+                    <button class="seg active" id="btnViewMonth" type="button">Lunar</button>
+                    <button class="seg" id="btnViewWeek" type="button">Săptămânal</button>
+                  </div>
+                  <button class="btn btn-ghost" id="btnPrevPeriod" type="button">‹</button>
+                  <div class="chip mono" id="shiftPeriodLabel">—</div>
+                  <button class="btn btn-ghost" id="btnNextPeriod" type="button">›</button>
+                  <button class="btn btn-primary" id="btnNewShift" type="button">+ Schimb</button>
+                </div>
+              </div>
+
+              <div class="legend">
+                <span class="badge badge-soft">Zi</span>
+                <span class="badge badge-night">Noapte</span>
+                <span class="badge badge-weekend">Weekend</span>
+                <span class="badge badge-warning">Lipsă planificare</span>
+              </div>
+
+              <div class="calendar-wrap" id="shiftCalendarWrap" aria-label="Calendar schimburi">
+                <!-- Populat de JS: grid fără SVG -->
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Schimburi (listă)</div>
+                  <div class="muted">CRUD · Validări: fără suprapunere, start &lt; end</div>
+                </div>
+                <div class="card-actions">
+                  <label class="field inline">
+                    <span class="label muted">Filtru</span>
+                    <select id="shiftTypeFilter" class="input">
+                      <option value="all">Toate</option>
+                      <option value="Zi">Zi</option>
+                      <option value="Noapte">Noapte</option>
+                      <option value="Weekend">Weekend</option>
+                    </select>
+                  </label>
+                  <button class="btn btn-ghost" id="btnExportShiftsJSON" type="button">Export JSON</button>
+                </div>
+              </div>
+
+              <div class="table-wrap">
+                <table class="table" aria-label="Listă schimburi">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Angajat</th>
+                      <th>Start</th>
+                      <th>End</th>
+                      <th>Tip</th>
+                      <th>Locație</th>
+                      <th class="right">Acțiuni</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tblShifts">
+                    <!-- Populat de JS -->
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          <!-- OVERTIME -->
+          <div class="tab-panel" id="tab-overtime" data-panel="overtime" role="tabpanel">
+            <div class="grid-2">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Overtime Requests</div>
+                    <div class="muted">Detectare automată · Aprobare simplă (Manager/HR)</div>
+                  </div>
+                  <div class="card-actions">
+                    <label class="field inline">
+                      <span class="label muted">Status</span>
+                      <select id="otStatusFilter" class="input">
+                        <option value="all">Toate</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                      </select>
+                    </label>
+                    <button class="btn btn-ghost" id="btnRecalcOT" type="button" title="Reevaluează overtime (demo)">
+                      Recalc
+                    </button>
+                  </div>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="table" aria-label="Overtime entries">
+                    <thead>
+                      <tr>
+                        <th>Angajat</th>
+                        <th>Data</th>
+                        <th>Ore</th>
+                        <th>Status</th>
+                        <th>Approved by</th>
+                        <th class="right">Payroll</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tblOvertime">
+                      <!-- Populat de JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+
+              <article class="card">
+               <div class="card-head">
+                  <div>
+                    <div class="card-title">Export către Payroll</div>
+                    <div class="muted">Demo: generează JSON structurat (fără integrare reală)</div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" id="btnExportPayrollJSON" type="button">
+                      Export către Payroll
+                    </button>
+                  </div>
+                </div>
+
+                <div class="codebox">
+                  <div class="codebox-head">
+                    <span class="muted">Preview payload</span>
+                    <span class="badge badge-soft">JSON</span>
+                  </div>
+                  <pre class="code mono" id="payrollPayloadPreview">{}</pre>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="insights">
+                  <div class="insights-head">
+                    <div class="card-title">Insights</div>
+                    <span class="badge badge-soft">Atenție</span>
+                  </div>
+                  <div class="muted" id="overtimeInsightsText">
+                    <!-- Populat de JS (time.ai.js) -->
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <!-- RAPOARTE -->
+          <div class="tab-panel" id="tab-reports" data-panel="reports" role="tabpanel">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Rapoarte</div>
+                  <div class="muted">Perioadă · Tabele simple · Export CSV/JSON</div>
+                </div>
+                <div class="card-actions">
+                  <label class="field inline">
+                    <span class="label muted">Start</span>
+                    <input id="repStart" class="input" type="date" />
+                  </label>
+                  <label class="field inline">
+                    <span class="label muted">End</span>
+                    <input id="repEnd" class="input" type="date" />
+                  </label>
+                  <button class="btn btn-primary" id="btnRunReports" type="button">Generează</button>
+                  <button class="btn btn-ghost" id="btnExportReportsJSON" type="button">Export JSON</button>
+                  <button class="btn btn-ghost" id="btnExportReportsCSV" type="button">Export CSV</button>
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="card inner">
+                  <div class="card-head">
+                    <div>
+                      <div class="card-title">Ore lucrate per angajat</div>
+                      <div class="muted">Sumă totală pe interval</div>
+                    </div>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="table" aria-label="Ore per angajat">
+                      <thead>
+                        <tr>
+                          <th>Angajat</th>
+                          <th>Departament</th>
+                          <th class="right">Ore</th>
+                          <th class="right">OT</th>
+                          <th class="right">Flag</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tblRepHoursEmp">
+                        <!-- Populat de JS -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="card inner">
+                  <div class="card-head">
+                    <div>
+                      <div class="card-title">Overtime per departament</div>
+                      <div class="muted">Total OT (ore) pe interval</div>
+                    </div>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="table" aria-label="OT per departament">
+                      <thead>
+                        <tr>
+                          <th>Departament</th>
+                          <th class="right">Ore OT</th>
+                          <th class="right">Angajați</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tblRepOTDept">
+                        <!-- Populat de JS -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- SETĂRI -->
+          <div class="tab-panel" id="tab-settings" data-panel="settings" role="tabpanel">
+            <div class="grid-2">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Setări</div>
+                    <div class="muted">Preferințe pentru calcul și comportament</div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-primary" id="btnSaveSettings" type="button">Salvează</button>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <label class="field">
+                    <span class="label muted">Normă zilnică standard (ore)</span>
+                    <input id="setStandardHours" class="input" type="number" min="1" max="16" step="0.5" />
+                  </label>
+
+                  <label class="field">
+                    <span class="label muted">Timezone</span>
+                    <input id="setTimezone" class="input" type="text" placeholder="Europe/Bucharest" />
+                  </label>
+
+                  <label class="field">
+                    <span class="label muted">Permite Mobile check-in</span>
+                    <select id="setAllowMobile" class="input">
+                      <option value="true">Da</option>
+                      <option value="false">Nu</option>
+                    </select>
+                  </label>
+
+                  <div class="field">
+                    <span class="label muted">Întreținere</span>
+                    <div class="btn-row">
+                      <button class="btn btn-ghost" id="btnResetDemo" type="button">Reset demo data</button>
+                      <button class="btn btn-ghost" id="btnWipeDB" type="button" title="Șterge DB + Settings (cu confirmare)">
+                        Șterge DB
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <div class="card-title">Import / Export</div>
+                    <div class="muted">Mutare rapidă date între browsere / PC-uri</div>
+                  </div>
+                </div>
+
+                <div class="callout">
+                  <div class="muted">
+                    Export include: <span class="mono">TIME_DB_v1</span> + <span class="mono">TIME_SETTINGS_v1</span>.
+                  </div>
+                  <div class="btn-row">
+                    <button class="btn btn-primary" id="btnExportAll2" type="button">Export JSON</button>
+                    <button class="btn btn-ghost" id="btnImportAll2" type="button">Import JSON</button>
+                  </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="mini card">
+                  <div class="mini-row">
+                    <div class="muted">Stare DB</div>
+                    <div class="mono" id="dbStatus">—</div>
+                  </div>
+                  <div class="mini-row">
+                    <div class="muted">Ultima salvare</div>
+                    <div class="mono" id="lastSavedLabel">—</div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+
+        </section>
+      </section>
+
+      <!-- Toasts -->
+      <div class="toasts" id="toastStack" aria-live="polite" aria-relevant="additions"></div>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal-backdrop" id="modalBackdrop" hidden></div>
+
+</body>
+</html>
