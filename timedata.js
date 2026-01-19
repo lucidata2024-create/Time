@@ -69,6 +69,7 @@
     { id: "E013", name: "Bogdan Ilie", department: "Operations" },
     { id: "E014", name: "Diana Voicu", department: "Marketing" },
     { id: "E015", name: "Sorin Petrescu", department: "IT" },
+    { id: "E016", name: "Panaghie Cocuz Valentin Mihai", department: "Contractor" },
   ];
 
   /* =========================
