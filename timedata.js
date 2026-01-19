@@ -54,21 +54,6 @@
      EMPLOYEES (MIN 15)
      ========================= */
   const EMPLOYEES = [
-    { id: "E001", name: "Andrei Popescu", department: "IT" },
-    { id: "E002", name: "Maria Ionescu", department: "HR" },
-    { id: "E003", name: "Alex Dumitru", department: "Finance" },
-    { id: "E004", name: "Ioana Marinescu", department: "Operations" },
-    { id: "E005", name: "Vlad Georgescu", department: "IT" },
-    { id: "E006", name: "Elena Stan", department: "HR" },
-    { id: "E007", name: "Mihai Radu", department: "Sales" },
-    { id: "E008", name: "Cristina Pop", department: "Marketing" },
-    { id: "E009", name: "Radu Enache", department: "Operations" },
-    { id: "E010", name: "Ana Dobre", department: "Finance" },
-    { id: "E011", name: "Paul Nistor", department: "IT" },
-    { id: "E012", name: "Laura Matei", department: "Sales" },
-    { id: "E013", name: "Bogdan Ilie", department: "Operations" },
-    { id: "E014", name: "Diana Voicu", department: "Marketing" },
-    { id: "E015", name: "Sorin Petrescu", department: "IT" },
     { id: "E016", name: "Panaghie Cocuz Valentin Mihai", department: "Contractor" },
     { id: "E017", name: "Panaghie Cocuz Valentin Dan", department: "CEO" },
     { id: "E018", name: "Panaghie Cocuz Iuliana Tatiana", department: "Secretara" },
