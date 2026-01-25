@@ -4,12 +4,19 @@
    Fără backend · localStorage · UX simplu și robust
 */
 
-(function () {
-  const APP = window.TIME_APP;
-  if (!APP || !APP.storage) {
-    console.error("TIME_APP.storage lipsă");
-    return;
-  }
+const firebaseConfig = {
+  apiKey: "AIzaSyA7Yo85miL9_a7d56LGj9MJy2ZGlEpFUr0",
+  authDomain: "lucidatatech-time.firebaseapp.com",
+  projectId: "lucidatatech-time",
+  storageBucket: "lucidatatech-time.firebasestorage.app",
+  messagingSenderId: "549755933178",
+  appId: "1:549755933178:web:b69199b0b37ae2e8a69443",
+  measurementId: "G-4M3Q322HV8"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
   /* =========================
      STATE
