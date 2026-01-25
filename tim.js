@@ -1,30 +1,27 @@
 /* /assets/js/time.js
-   Time & Attendance – Firebase INIT + DEMO DATA
+   Time & Attendance – Firebase INIT + Demo Data
    Namespace: window.TIME_APP
 */
 
 /* =========================
-   FIREBASE INIT (DOAR INIT)
+   FIREBASE INIT (SAFE)
    ========================= */
 
-// Import Firebase SDKs
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
 
-// Config Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA7Yo85miL9_a7d56LGj9MJy2ZGlEpFUr0",
   authDomain: "lucidatatech-time.firebaseapp.com",
   projectId: "lucidatatech-time",
   storageBucket: "lucidatatech-time.firebasestorage.app",
   messagingSenderId: "549755933178",
-  appId: "1:549755933178:web:b69199b0b37ae2e8a69443",
-  measurementId: "G-4M3Q322HV8"
+  appId: "1:549755933178:web:afe40fc567e362e1a69443",
+  measurementId: "G-99528FFGYW"
 };
 
-// Initialize Firebase
-const firebaseApp = initializeApp(firebaseConfig);
-const analytics = getAnalytics(firebaseApp);
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 /* =========================
    TIME APP MODULE
@@ -35,15 +32,11 @@ const analytics = getAnalytics(firebaseApp);
   if (!window.TIME_APP) window.TIME_APP = {};
   const APP = window.TIME_APP;
 
-  /* =========================
-     STATE
-     ========================= */
-
   const state = {
     activeTab: "overview",
     selectedDate: new Date().toISOString().slice(0, 10),
     mobileMode: false,
-    allEntries: []   // alimentat din timedata.js
+    allEntries: []
   };
 
   /* =========================
@@ -63,22 +56,20 @@ const analytics = getAnalytics(firebaseApp);
   };
 
   /* =========================
-     DEMO DATA LOAD
+     LOAD DEMO DATA
      ========================= */
 
   function loadDemoData() {
     if (!window.TIME_DATA || !Array.isArray(window.TIME_DATA.entries)) {
-      console.warn("TIME_DATA lipsă – nu există date demo");
+      console.warn("TIME_DATA lipsă");
       state.allEntries = [];
       return;
     }
-
-    // Copie sigură
     state.allEntries = JSON.parse(JSON.stringify(window.TIME_DATA.entries));
   }
 
   /* =========================
-     LOGICĂ CHECK-IN / OUT (LOCAL)
+     CHECK-IN / CHECK-OUT
      ========================= */
 
   function handleCheckInOut(isCheckIn) {
@@ -91,10 +82,7 @@ const analytics = getAnalytics(firebaseApp);
     );
 
     if (isCheckIn) {
-      if (existing?.checkInTime) {
-        toast("Check-in deja efectuat");
-        return;
-      }
+      if (existing?.checkInTime) return toast("Check-in deja efectuat");
 
       state.allEntries.push({
         id: crypto.randomUUID(),
@@ -108,13 +96,10 @@ const analytics = getAnalytics(firebaseApp);
 
       toast("Check-in salvat (demo)");
     } else {
-      if (!existing || existing.checkOutTime) {
-        toast("Nu există check-in activ");
-        return;
-      }
+      if (!existing || existing.checkOutTime)
+        return toast("Nu există check-in activ");
 
       existing.checkOutTime = nowTime();
-
       const start = new Date(`${date}T${existing.checkInTime}`);
       const end = new Date(`${date}T${existing.checkOutTime}`);
       existing.totalHours = +((end - start) / 36e5).toFixed(2);
@@ -126,30 +111,31 @@ const analytics = getAnalytics(firebaseApp);
   }
 
   /* =========================
-     RENDERING
+     RENDER
      ========================= */
 
   function renderOverview() {
-    const todayEntries = state.allEntries.filter(e => e.date === state.selectedDate);
+    const today = state.selectedDate;
+    const entries = state.allEntries.filter(e => e.date === today);
 
     if ($("#kpiCheckedInToday"))
-      $("#kpiCheckedInToday").textContent = todayEntries.length;
+      $("#kpiCheckedInToday").textContent = entries.length;
 
-    const tbody = $("#tblRecentCheckins");
-    if (!tbody) return;
+    const tb = $("#tblRecentCheckins");
+    if (!tb) return;
+    tb.innerHTML = "";
 
-    tbody.innerHTML = "";
-    todayEntries.slice(0, 6).forEach(e => {
+    entries.slice(0, 6).forEach(e => {
       const emp = APP.db?.employees?.find(x => x.id === e.employeeId);
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${emp?.name || "Angajat"}</td>
         <td>${e.date}</td>
         <td>${e.checkInTime || "-"}</td>
-        <td><span class="badge badge-soft">${e.source}</span></td>
+        <td><span class="badge">${e.source}</span></td>
         <td class="right"><span class="badge">DEMO</span></td>
       `;
-      tbody.appendChild(tr);
+      tb.appendChild(tr);
     });
   }
 
@@ -157,8 +143,8 @@ const analytics = getAnalytics(firebaseApp);
     const date = $("#punchDate")?.value || state.selectedDate;
     const tb = $("#tblPunchDay");
     if (!tb) return;
-
     tb.innerHTML = "";
+
     state.allEntries.filter(e => e.date === date).forEach(e => {
       const emp = APP.db?.employees?.find(x => x.id === e.employeeId);
       const tr = document.createElement("tr");
@@ -180,7 +166,7 @@ const analytics = getAnalytics(firebaseApp);
   }
 
   /* =========================
-     NAV & INIT
+     INIT
      ========================= */
 
   function switchTab(tab) {
@@ -218,4 +204,3 @@ const analytics = getAnalytics(firebaseApp);
   document.addEventListener("DOMContentLoaded", init);
 
 })();
-
