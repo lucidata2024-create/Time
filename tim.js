@@ -3,23 +3,27 @@
    Namespace: window.TIME_APP
 */
 
-// 1. IMPORTURI FIREBASE (Curg direct din CDN)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, where, doc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// 2. CONFIGURAȚIA TA (Lipește aici ce ai în poza de pe laptop)
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCNpkbtJSU0lrJ47zpWkWgdKv-EjQc5G0w",
-  authDomain: "lucidata-6ae50.firebaseapp.com",
-  projectId: "lucidata-6ae50",
-  storageBucket: "lucidata-6ae50.firebasestorage.app",
-  messagingSenderId: "314162675492",
-  appId: "1:314162675492:web:3174cc0ef22537a67dbdb1"
+  apiKey: "AIzaSyA7Yo85miL9_a7d56LGj9MJy2ZGlEpFUr0",
+  authDomain: "lucidatatech-time.firebaseapp.com",
+  projectId: "lucidatatech-time",
+  storageBucket: "lucidatatech-time.firebasestorage.app",
+  messagingSenderId: "549755933178",
+  appId: "1:549755933178:web:b69199b0b37ae2e8a69443",
+  measurementId: "G-4M3Q322HV8"
 };
 
-// Inițializare
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 (function () {
   const APP = window.TIME_APP;
