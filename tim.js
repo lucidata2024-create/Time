@@ -1,14 +1,29 @@
 /* /assets/js/time.js
-   Time & Attendance – Firebase INIT + Demo Data
+   Time & Attendance – Firebase Firestore LIVE
    Namespace: window.TIME_APP
 */
 
 /* =========================
-   FIREBASE INIT (SAFE)
+   FIREBASE IMPORTS
    ========================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  query,
+  orderBy,
+  getDocs,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+/* =========================
+   FIREBASE CONFIG
+   ========================= */
 
 const firebaseConfig = {
   apiKey: "AIzaSyA7Yo85miL9_a7d56LGj9MJy2ZGlEpFUr0",
@@ -21,7 +36,8 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+getAnalytics(app);
+const db = getFirestore(app);
 
 /* =========================
    TIME APP MODULE
@@ -32,10 +48,14 @@ const analytics = getAnalytics(app);
   if (!window.TIME_APP) window.TIME_APP = {};
   const APP = window.TIME_APP;
 
+  /* =========================
+     STATE
+     ========================= */
+
   const state = {
     activeTab: "overview",
     selectedDate: new Date().toISOString().slice(0, 10),
-    mobileMode: false,
+    mobileMode: /Android|iPhone/i.test(navigator.userAgent),
     allEntries: []
   };
 
@@ -56,23 +76,27 @@ const analytics = getAnalytics(app);
   };
 
   /* =========================
-     LOAD DEMO DATA
+     FIRESTORE LOAD
      ========================= */
 
-  function loadDemoData() {
-    if (!window.TIME_DATA || !Array.isArray(window.TIME_DATA.entries)) {
-      console.warn("TIME_DATA lipsă");
-      state.allEntries = [];
-      return;
-    }
-    state.allEntries = JSON.parse(JSON.stringify(window.TIME_DATA.entries));
+  async function loadCloudData() {
+    const q = query(
+      collection(db, "timeEntries"),
+      orderBy("createdAt", "desc")
+    );
+
+    const snapshot = await getDocs(q);
+    state.allEntries = snapshot.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
   }
 
   /* =========================
-     CHECK-IN / CHECK-OUT
+     CHECK-IN / CHECK-OUT (CLOUD)
      ========================= */
 
-  function handleCheckInOut(isCheckIn) {
+  async function handleCheckInOut(isCheckIn) {
     const empId = $("#punchEmployeeSelect")?.value;
     if (!empId) return toast("Selectați un angajat");
 
@@ -82,31 +106,38 @@ const analytics = getAnalytics(app);
     );
 
     if (isCheckIn) {
-      if (existing?.checkInTime) return toast("Check-in deja efectuat");
+      if (existing?.checkInTime)
+        return toast("Check-in deja efectuat");
 
-      state.allEntries.push({
-        id: crypto.randomUUID(),
+      await addDoc(collection(db, "timeEntries"), {
         employeeId: empId,
         date,
         checkInTime: nowTime(),
         checkOutTime: null,
         totalHours: null,
-        source: state.mobileMode ? "Mobile" : "Web"
+        source: state.mobileMode ? "Mobile" : "Web",
+        createdAt: serverTimestamp()
       });
 
-      toast("Check-in salvat (demo)");
+      toast("Check-in salvat în cloud");
     } else {
       if (!existing || existing.checkOutTime)
         return toast("Nu există check-in activ");
 
-      existing.checkOutTime = nowTime();
+      const endTime = nowTime();
       const start = new Date(`${date}T${existing.checkInTime}`);
-      const end = new Date(`${date}T${existing.checkOutTime}`);
-      existing.totalHours = +((end - start) / 36e5).toFixed(2);
+      const end = new Date(`${date}T${endTime}`);
+      const totalHours = +((end - start) / 36e5).toFixed(2);
 
-      toast("Check-out salvat (demo)");
+      await updateDoc(doc(db, "timeEntries", existing.id), {
+        checkOutTime: endTime,
+        totalHours
+      });
+
+      toast("Check-out salvat în cloud");
     }
 
+    await loadCloudData();
     render();
   }
 
@@ -115,17 +146,18 @@ const analytics = getAnalytics(app);
      ========================= */
 
   function renderOverview() {
-    const today = state.selectedDate;
-    const entries = state.allEntries.filter(e => e.date === today);
+    const todayEntries = state.allEntries.filter(
+      e => e.date === state.selectedDate
+    );
 
-    if ($("#kpiCheckedInToday"))
-      $("#kpiCheckedInToday").textContent = entries.length;
+    $("#kpiCheckedInToday") &&
+      ($("#kpiCheckedInToday").textContent = todayEntries.length);
 
     const tb = $("#tblRecentCheckins");
     if (!tb) return;
     tb.innerHTML = "";
 
-    entries.slice(0, 6).forEach(e => {
+    todayEntries.slice(0, 6).forEach(e => {
       const emp = APP.db?.employees?.find(x => x.id === e.employeeId);
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -133,7 +165,7 @@ const analytics = getAnalytics(app);
         <td>${e.date}</td>
         <td>${e.checkInTime || "-"}</td>
         <td><span class="badge">${e.source}</span></td>
-        <td class="right"><span class="badge">DEMO</span></td>
+        <td class="right"><span class="badge">LIVE</span></td>
       `;
       tb.appendChild(tr);
     });
@@ -154,7 +186,7 @@ const analytics = getAnalytics(app);
         <td>${e.checkOutTime || "-"}</td>
         <td>${e.totalHours || "-"}</td>
         <td>${e.source}</td>
-        <td class="right">Local</td>
+        <td class="right">Cloud</td>
       `;
       tb.appendChild(tr);
     });
@@ -180,11 +212,11 @@ const analytics = getAnalytics(app);
     render();
   }
 
-  function init() {
-    loadDemoData();
+  async function init() {
+    await loadCloudData();
 
     setInterval(() => {
-      if ($("#liveClock")) $("#liveClock").textContent = nowTime();
+      $("#liveClock") && ($("#liveClock").textContent = nowTime());
     }, 1000);
 
     $("#btnCheckIn")?.addEventListener("click", () => handleCheckInOut(true));
@@ -197,7 +229,7 @@ const analytics = getAnalytics(app);
     render();
 
     setTimeout(() => {
-      if ($("#appLoader")) $("#appLoader").style.display = "none";
+      $("#appLoader") && ($("#appLoader").style.display = "none");
     }, 400);
   }
 
